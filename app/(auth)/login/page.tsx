@@ -47,7 +47,7 @@ export default async function LoginPage({ searchParams }: Props) {
             </button>
             {error && (
               <p className="text-xs text-[var(--bad)] text-center">
-                {error === "email" ? "Enter a valid email." : "Something went wrong — try again."}
+                {error === "email" ? "Enter a valid email." : decodeURIComponent(error)}
               </p>
             )}
           </form>

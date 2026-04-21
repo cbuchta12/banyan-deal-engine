@@ -16,6 +16,10 @@ export async function sendMagicLink(formData: FormData) {
     options: { emailRedirectTo: `${appUrl}/auth/callback` },
   });
 
-  if (error) redirect("/login?error=send");
+  if (error) {
+    const msg = encodeURIComponent(error.message);
+    redirect(`/login?error=${msg}`);
+  }
+
   redirect("/login?sent=1");
 }
