@@ -3,9 +3,9 @@ import { calcBRRRR } from "./brrrr";
 import { calcNNN } from "./nnn";
 
 export interface BRRRRBacksolve {
-  maxPriceForCoC: number;
-  maxPriceForDSCR: number;
-  maxPriceForCF: number;
+  maxPriceForCoC: number;    // 0 = unachievable at any price
+  maxPriceForDSCR: number;   // 0 = unachievable; Infinity = met at any price (not price-sensitive)
+  maxPriceForCF: number;     // same semantics as maxPriceForDSCR
 }
 
 export interface NNNBacksolve {
@@ -33,25 +33,30 @@ export function backsolveBRRRR(inputs: BRRRRInputs, targets: {
   targetMonthlyCF: number;
 }): BRRRRBacksolve {
   const { targetCoC, targetDSCR, targetMonthlyCF } = targets;
-  const cap = (v: number) => Math.max(1000, Math.min(v, inputs.arv * 3));
 
-  const maxPriceForCoC = binarySearch(
-    1000, inputs.arv * 3,
-    p => calcBRRRR({ ...inputs, purchase: cap(p) }).cocReturn * 100,
-    targetCoC
-  );
+  // In BRRRR, operating metrics (DSCR, monthly CF) are INDEPENDENT of purchase price.
+  // Debt service = refiLoan (ARV × LTV) / rate — unaffected by what you paid.
+  // Only CoC varies with purchase because equityLeftInDeal = purchase + fixedCosts − refiLoan + refiClosingCosts.
+  const base = calcBRRRR(inputs);
 
-  const maxPriceForDSCR = binarySearch(
-    1000, inputs.arv * 3,
-    p => calcBRRRR({ ...inputs, purchase: cap(p) }).dscr,
-    targetDSCR
-  );
+  // DSCR: constant across all purchase prices.
+  const maxPriceForDSCR = base.dscr >= targetDSCR ? Infinity : 0;
+  // Monthly CF: same.
+  const maxPriceForCF = base.cashflowMonthly >= targetMonthlyCF ? Infinity : 0;
 
-  const maxPriceForCF = binarySearch(
-    1000, inputs.arv * 3,
-    p => calcBRRRR({ ...inputs, purchase: cap(p) }).cashflowMonthly,
-    targetMonthlyCF
-  );
+  // CoC — closed-form solution (no iteration needed):
+  // equityLeftInDeal = purchase + rehab + closingCosts + holdingCosts − refiLoan + refiClosingCosts
+  // CoC = cashflowAnnual / equityLeftInDeal  →  equityLeftInDeal = cashflowAnnual / (targetCoC/100)
+  // purchase_max = equityLeftInDeal − (rehab + closingCosts + holdingCosts) + refiLoan − refiClosingCosts
+  if (base.cashflowAnnual <= 0) {
+    // Negative/zero CF: CoC can never be positive, no purchase price helps.
+    return { maxPriceForCoC: 0, maxPriceForDSCR, maxPriceForCF };
+  }
+
+  const refiLoan = inputs.arv * (inputs.refiLtv / 100);
+  const fixedCosts = inputs.rehab + inputs.closingCosts + inputs.holdingCosts;
+  const targetEquityInDeal = base.cashflowAnnual / (targetCoC / 100);
+  const maxPriceForCoC = Math.max(0, targetEquityInDeal - fixedCosts + refiLoan - inputs.refiClosingCosts);
 
   return { maxPriceForCoC, maxPriceForDSCR, maxPriceForCF };
 }

@@ -30,7 +30,10 @@ export function SensitivityMatrix({ mode, brrrrInputs, nnnInputs }: {
             purchase: brrrrInputs.purchase * (1 + colStep),
             rent: brrrrInputs.rent * (1 + rowStep),
           };
-          return calcBRRRR(i).cocReturn * 100;
+          const r = calcBRRRR(i);
+          // equityLeftInDeal <= 0 with negative CF → not meaningful (N/M)
+          if (r.equityLeftInDeal <= 0 && r.cashflowMonthly <= 0) return NaN;
+          return r.cocReturn * 100; // may be Infinity when equity <= 0 but CF > 0
         })
       );
     } else {
@@ -75,11 +78,15 @@ export function SensitivityMatrix({ mode, brrrrInputs, nnnInputs }: {
             {grid.map((row, ri) => (
               <tr key={ri}>
                 <td className="text-right pr-3 py-0.5 text-[var(--ink-dim)]">{STEP_LABELS[ri]}</td>
-                {row.map((val, ci) => (
-                  <td key={ci} className={`text-center px-1 py-1 rounded text-[10px] font-bold mx-0.5 ${cellColor(val, thresholds)} ${ri === 2 && ci === 2 ? "ring-1 ring-white/30" : ""}`}>
-                    {val.toFixed(1)}%
-                  </td>
-                ))}
+                {row.map((val, ci) => {
+                  const display = isNaN(val) ? "N/M" : !isFinite(val) ? "∞" : val.toFixed(1) + "%";
+                  const colorVal = isNaN(val) || !isFinite(val) ? (isNaN(val) ? -1 : 999) : val;
+                  return (
+                    <td key={ci} className={`text-center px-1 py-1 rounded text-[10px] font-bold mx-0.5 ${cellColor(colorVal, thresholds)} ${ri === 2 && ci === 2 ? "ring-1 ring-white/30" : ""}`}>
+                      {display}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>

@@ -24,9 +24,25 @@ function TargetField({ label, value, onChange, suffix }: {
   );
 }
 
-function Result({ label, value, current, isMax }: {
-  label: string; value: number; current: number; isMax?: boolean;
+function Result({ label, value, current }: {
+  label: string; value: number; current: number;
 }) {
+  if (value === Infinity) {
+    return (
+      <div className="flex items-center justify-between py-2 border-b border-[var(--line)] last:border-0">
+        <span className="text-xs font-mono text-[var(--ink-dim)]">{label}</span>
+        <span className="text-sm font-mono font-bold text-[var(--accent)]">Currently met ✓</span>
+      </div>
+    );
+  }
+  if (value === 0) {
+    return (
+      <div className="flex items-center justify-between py-2 border-b border-[var(--line)] last:border-0">
+        <span className="text-xs font-mono text-[var(--ink-dim)]">{label}</span>
+        <span className="text-sm font-mono font-bold text-[var(--bad)]">N/A — not achievable</span>
+      </div>
+    );
+  }
   const delta = value - current;
   const pct = current > 0 ? (delta / current) * 100 : 0;
   const good = delta <= 0;
@@ -98,7 +114,14 @@ export function OfferBacksolve({ mode, brrrrInputs, nnnInputs }: {
         <div className="bg-[var(--panel-2)] border border-[var(--line)] rounded p-3">
           <p className="text-[10px] font-mono text-[var(--ink-faint)]">
             <span className="text-[var(--accent)] font-bold">Binding constraint: </span>
-            {$(Math.min(bResult.maxPriceForCoC, bResult.maxPriceForDSCR, bResult.maxPriceForCF))} — the most restrictive of your three targets.
+            {(() => {
+              const finite = [bResult.maxPriceForCoC, bResult.maxPriceForDSCR, bResult.maxPriceForCF].filter(v => isFinite(v) && v > 0);
+              if (finite.length === 0) return "No target achievable at any purchase price — check rent / expenses / rate.";
+              return $(Math.min(...finite)) + " — most restrictive of your targets.";
+            })()}
+          </p>
+          <p className="text-[9px] font-mono text-[var(--ink-faint)] mt-1">
+            * In BRRRR, DSCR and monthly CF are determined by rent, expenses, and refi terms — not purchase price.
           </p>
         </div>
       </div>

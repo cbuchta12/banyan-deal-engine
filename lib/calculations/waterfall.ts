@@ -75,9 +75,12 @@ export function calcWaterfall(inp: WaterfallInputs): WaterfallResult {
     cash -= prefPaid;
     accrued = Math.max(0, prefDue - prefPaid);
 
-    // Step 2: Split remaining
-    const lpAbove = cash * (1 - promoteRate);
-    const gpProm = cash * promoteRate;
+    // Step 2: Split positive remaining cash only.
+    // In a pref+promote structure, losses are NOT distributed — unpaid pref accrues
+    // and gets paid from future cash flows before any GP promote kicks in.
+    const remainder = Math.max(0, cash);
+    const lpAbove = remainder * (1 - promoteRate);
+    const gpProm = remainder * promoteRate;
 
     // Step 3: At exit, return capital
     let lpCapReturn = 0, gpCapReturn = 0;
