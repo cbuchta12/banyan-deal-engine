@@ -39,6 +39,10 @@ export interface BRRRRInputs {
   management: number;
   utilities: number;
   other: number;
+  // DCF
+  rentGrowth: number;
+  exitCapRate: number;
+  holdPeriod: number;
 }
 
 export interface BRRRRResult {
@@ -120,3 +124,17 @@ export type NNNVerdict =
   | "NEGOTIATE"
   | "PASS / REWORK"
   | "HARD PASS";
+
+// ── Local deal (localStorage) ──────────────────────────────────
+
+export interface LocalDeal {
+  id: string;
+  name: string;
+  address: string;
+  mode: DealMode;
+  status: DealStatus;
+  inputs: BRRRRInputs | NNNInputs;
+  result: BRRRRResult | NNNResult;
+  createdAt: string;
+  updatedAt: string;
+}
