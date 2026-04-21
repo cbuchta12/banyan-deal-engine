@@ -154,8 +154,10 @@ export function AnalyzeWorkspace() {
         {/* Results */}
         <div className="flex-1 overflow-y-auto">
           {mode === "brrrr"
-            ? <BRRRRResults result={brrrrResult} dcf={brrrrDCF} inputs={brrrrInputs} />
-            : <NNNResults result={nnnResult} dcf={nnnDCF} inputs={nnnInputs} />
+            ? <BRRRRResults result={brrrrResult} dcf={brrrrDCF} inputs={brrrrInputs}
+                dealName={dealName} address={address} nnnInputs={nnnInputs} />
+            : <NNNResults result={nnnResult} dcf={nnnDCF} inputs={nnnInputs}
+                dealName={dealName} address={address} brrrrInputs={brrrrInputs} />
           }
         </div>
       </div>

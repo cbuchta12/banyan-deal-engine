@@ -1,8 +1,12 @@
 "use client";
 
-import type { NNNResult, NNNInputs } from "@/types/deal";
+import { useState } from "react";
+import type { NNNResult, NNNInputs, BRRRRInputs } from "@/types/deal";
 import type { DCFResult } from "@/lib/calculations/dcf";
 import { DCFTable } from "./DCFTable";
+import { SensitivityMatrix } from "./SensitivityMatrix";
+import { OfferBacksolve } from "./OfferBacksolve";
+import { AIAnalysis } from "./AIAnalysis";
 
 const $ = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 const pct = (n: number) => (n * 100).toFixed(2) + "%";
@@ -38,82 +42,111 @@ function Row({ label, value, dim }: { label: string; value: string; dim?: boolea
   );
 }
 
-export function NNNResults({ result: r, dcf, inputs }: {
+const TABS = ["Results", "Sensitivity", "Backsolve", "AI Memo"] as const;
+type Tab = typeof TABS[number];
+
+export function NNNResults({ result: r, dcf, inputs, dealName, address, brrrrInputs }: {
   result: NNNResult; dcf: DCFResult; inputs: NNNInputs;
+  dealName?: string; address?: string; brrrrInputs: BRRRRInputs;
 }) {
+  const [tab, setTab] = useState<Tab>("Results");
   const strengthLabel = STRENGTH_LABELS[Math.min(r.leaseStrength, 8)] ?? "—";
 
   return (
-    <div className="p-4 flex flex-col gap-4">
-      {/* Verdict */}
-      <div className="flex items-center gap-3">
-        <span className={`px-4 py-1.5 rounded font-mono font-bold text-sm tracking-widest ${VERDICT_STYLE[r.verdict] ?? ""}`}>
-          {r.verdict}
-        </span>
-        <span className="text-xs font-mono text-[var(--ink-faint)]">
-          Lease strength {r.leaseStrength}/9 · {strengthLabel}
-        </span>
+    <div className="flex flex-col">
+      {/* Tab bar */}
+      <div className="flex gap-0 border-b border-[var(--line)] bg-[var(--panel)] flex-shrink-0">
+        {TABS.map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            className={`px-4 py-2 text-[10px] font-mono font-bold transition-colors border-b-2 ${
+              tab === t
+                ? "border-[var(--accent)] text-[var(--accent)]"
+                : "border-transparent text-[var(--ink-faint)] hover:text-[var(--ink-dim)]"
+            }`}>
+            {t}
+          </button>
+        ))}
       </div>
 
-      {/* Key metrics */}
-      <div className="grid grid-cols-2 gap-2">
-        <Metric label="Going-In Cap Rate" value={pct(r.goingInCapRate)} good={r.goingInCapRate >= 0.075} />
-        <Metric label="Monthly Cash Flow" value={$(r.cashflowMonthly)} good={r.cashflowMonthly > 0} />
-        <Metric label="DSCR" value={r.dscr.toFixed(2)} good={r.dscr >= 1.30} />
-        <Metric label="Price / SF" value={"$" + r.pricePerSf.toFixed(0)} />
-      </div>
-
-      {/* Income / expense */}
-      <div className="bg-[var(--panel)] border border-[var(--line)] rounded p-3">
-        <p className="text-[9px] font-mono font-bold text-[var(--accent)] uppercase tracking-widest mb-2">Income & Expenses (Annual)</p>
-        <Row label="Base Rent" value={$(r.baseRentAnnual)} />
-        <Row label="Vacancy Loss" value={$(-r.baseRentAnnual * inputs.vacancy / 100)} dim />
-        <Row label="Landlord Expenses" value={$(-r.landlordExpenses)} dim />
-        <Row label="NOI" value={$(r.noiAnnual)} />
-        <Row label="Debt Service" value={$(-r.debtServiceAnnual)} dim />
-        <Row label="Net Cash Flow" value={$(r.cashflowAnnual)} />
-      </div>
-
-      {/* Debt / equity */}
-      <div className="bg-[var(--panel)] border border-[var(--line)] rounded p-3">
-        <p className="text-[9px] font-mono font-bold text-[var(--accent)] uppercase tracking-widest mb-2">Capital Structure</p>
-        <Row label="Purchase Price" value={$(inputs.price)} />
-        <Row label="Loan Amount" value={$(r.loan)} />
-        <Row label="Equity (inc. closing)" value={$(r.equity)} />
-        <Row label="Cash-on-Cash Return" value={pct(r.cocReturn)} />
-      </div>
-
-      {/* Exit */}
-      <div className="bg-[var(--panel)] border border-[var(--line)] rounded p-3">
-        <p className="text-[9px] font-mono font-bold text-[var(--accent)] uppercase tracking-widest mb-2">Exit Analysis</p>
-        <Row label={`Exit Cap Rate (Yr ${inputs.loanTerm})`} value={inputs.exitCapRate + "%"} dim />
-        <Row label="Projected Exit Value" value={$(r.exitValue)} />
-        <Row label="Appreciation" value={$(r.appreciation)} />
-      </div>
-
-      {/* DCF */}
-      <div className="bg-[var(--panel)] border border-[var(--line)] rounded p-3">
-        <p className="text-[9px] font-mono font-bold text-[var(--accent)] uppercase tracking-widest mb-2">
-          {inputs.loanTerm}-Year DCF
-        </p>
-        <div className="grid grid-cols-3 gap-3 mb-3">
-          <div className="text-center">
-            <p className="text-[9px] font-mono text-[var(--ink-faint)] uppercase tracking-wider">IRR</p>
-            <p className="text-base font-mono font-bold text-[var(--accent)]">{pct(dcf.irr)}</p>
+      {tab === "Results" && (
+        <div className="p-4 flex flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <span className={`px-4 py-1.5 rounded font-mono font-bold text-sm tracking-widest ${VERDICT_STYLE[r.verdict] ?? ""}`}>
+              {r.verdict}
+            </span>
+            <span className="text-xs font-mono text-[var(--ink-faint)]">
+              Lease strength {r.leaseStrength}/9 · {strengthLabel}
+            </span>
           </div>
-          <div className="text-center">
-            <p className="text-[9px] font-mono text-[var(--ink-faint)] uppercase tracking-wider">Equity Multiple</p>
-            <p className="text-base font-mono font-bold text-[var(--ink)]">{x(dcf.equityMultiple)}</p>
+
+          <div className="grid grid-cols-2 gap-2">
+            <Metric label="Going-In Cap Rate" value={pct(r.goingInCapRate)} good={r.goingInCapRate >= 0.075} />
+            <Metric label="Monthly Cash Flow" value={$(r.cashflowMonthly)} good={r.cashflowMonthly > 0} />
+            <Metric label="DSCR" value={r.dscr.toFixed(2)} good={r.dscr >= 1.30} />
+            <Metric label="Price / SF" value={"$" + r.pricePerSf.toFixed(0)} />
           </div>
-          <div className="text-center">
-            <p className="text-[9px] font-mono text-[var(--ink-faint)] uppercase tracking-wider">NPV @ 10%</p>
-            <p className={`text-base font-mono font-bold ${dcf.npv10 >= 0 ? "text-[var(--accent)]" : "text-[var(--bad)]"}`}>
-              {$(dcf.npv10)}
+
+          <div className="bg-[var(--panel)] border border-[var(--line)] rounded p-3">
+            <p className="text-[9px] font-mono font-bold text-[var(--accent)] uppercase tracking-widest mb-2">Income & Expenses (Annual)</p>
+            <Row label="Base Rent" value={$(r.baseRentAnnual)} />
+            <Row label="Vacancy Loss" value={$(-r.baseRentAnnual * inputs.vacancy / 100)} dim />
+            <Row label="Landlord Expenses" value={$(-r.landlordExpenses)} dim />
+            <Row label="NOI" value={$(r.noiAnnual)} />
+            <Row label="Debt Service" value={$(-r.debtServiceAnnual)} dim />
+            <Row label="Net Cash Flow" value={$(r.cashflowAnnual)} />
+          </div>
+
+          <div className="bg-[var(--panel)] border border-[var(--line)] rounded p-3">
+            <p className="text-[9px] font-mono font-bold text-[var(--accent)] uppercase tracking-widest mb-2">Capital Structure</p>
+            <Row label="Purchase Price" value={$(inputs.price)} />
+            <Row label="Loan Amount" value={$(r.loan)} />
+            <Row label="Equity (inc. closing)" value={$(r.equity)} />
+            <Row label="Cash-on-Cash Return" value={pct(r.cocReturn)} />
+          </div>
+
+          <div className="bg-[var(--panel)] border border-[var(--line)] rounded p-3">
+            <p className="text-[9px] font-mono font-bold text-[var(--accent)] uppercase tracking-widest mb-2">Exit Analysis</p>
+            <Row label={`Exit Cap Rate (Yr ${inputs.loanTerm})`} value={inputs.exitCapRate + "%"} dim />
+            <Row label="Projected Exit Value" value={$(r.exitValue)} />
+            <Row label="Appreciation" value={$(r.appreciation)} />
+          </div>
+
+          <div className="bg-[var(--panel)] border border-[var(--line)] rounded p-3">
+            <p className="text-[9px] font-mono font-bold text-[var(--accent)] uppercase tracking-widest mb-2">
+              {inputs.loanTerm}-Year DCF
             </p>
+            <div className="grid grid-cols-3 gap-3 mb-3">
+              <div className="text-center">
+                <p className="text-[9px] font-mono text-[var(--ink-faint)] uppercase tracking-wider">IRR</p>
+                <p className="text-base font-mono font-bold text-[var(--accent)]">{pct(dcf.irr)}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-[9px] font-mono text-[var(--ink-faint)] uppercase tracking-wider">Equity Multiple</p>
+                <p className="text-base font-mono font-bold text-[var(--ink)]">{x(dcf.equityMultiple)}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-[9px] font-mono text-[var(--ink-faint)] uppercase tracking-wider">NPV @ 10%</p>
+                <p className={`text-base font-mono font-bold ${dcf.npv10 >= 0 ? "text-[var(--accent)]" : "text-[var(--bad)]"}`}>
+                  {$(dcf.npv10)}
+                </p>
+              </div>
+            </div>
+            <DCFTable rows={dcf.rows} />
           </div>
         </div>
-        <DCFTable rows={dcf.rows} />
-      </div>
+      )}
+
+      {tab === "Sensitivity" && (
+        <SensitivityMatrix mode="nnn" brrrrInputs={brrrrInputs} nnnInputs={inputs} />
+      )}
+
+      {tab === "Backsolve" && (
+        <OfferBacksolve mode="nnn" brrrrInputs={brrrrInputs} nnnInputs={inputs} />
+      )}
+
+      {tab === "AI Memo" && (
+        <AIAnalysis mode="nnn" dealName={dealName ?? ""} address={address ?? ""} inputs={inputs} result={r} />
+      )}
     </div>
   );
 }
