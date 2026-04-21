@@ -69,39 +69,40 @@ export function calcWaterfall(inp: WaterfallInputs): WaterfallResult {
   for (const p of periods) {
     let cash = p.cf;
 
-    // Step 1: LP preferred return + accrued
-    const prefDue = lpEquity * prefRate + accrued;
-    const prefPaid = Math.max(0, Math.min(cash, prefDue));
-    cash -= prefPaid;
-    accrued = Math.max(0, prefDue - prefPaid);
-
-    // Step 2: Split positive remaining cash only.
-    // In a pref+promote structure, losses are NOT distributed — unpaid pref accrues
-    // and gets paid from future cash flows before any GP promote kicks in.
-    const remainder = Math.max(0, cash);
-    const lpAbove = remainder * (1 - promoteRate);
-    const gpProm = remainder * promoteRate;
-
-    // Step 3: At exit, return capital
-    let lpCapReturn = 0, gpCapReturn = 0;
-    if (p.isExit) {
-      // Capital already embedded in exitEquity distributions — no separate return needed
+    // Loss years: no distributions. Unpaid pref accrues to next period.
+    if (cash <= 0) {
+      accrued += lpEquity * prefRate;
+      rows.push({ year: p.year, cashFlow: p.cf, lpPref: 0, lpAbovePref: 0, gpPromote: 0, lpTotal: 0, gpTotal: 0, accrued });
+      lpCFs.push(0);
+      gpCFs.push(0);
+      continue;
     }
 
-    const lpTotal = prefPaid + lpAbove + lpCapReturn;
-    const gpTotal = gpProm + gpCapReturn;
+    // Step 1: Pay current year pref + all previously accrued pref
+    const prefDue = lpEquity * prefRate + accrued;
+    const prefPaid = Math.min(cash, prefDue);
+    cash -= prefPaid;
+    accrued = prefDue - prefPaid;
+
+    // Step 2 (exit only): Return LP capital, then GP capital, before promote split
+    let lpCapReturn = 0, gpCapReturn = 0;
+    if (p.isExit) {
+      lpCapReturn = Math.min(cash, lpEquity);
+      cash -= lpCapReturn;
+      gpCapReturn = Math.min(cash, gpEquity);
+      cash -= gpCapReturn;
+    }
+
+    // Step 3: Split residual by promote
+    const lpAbove = cash * (1 - promoteRate);
+    const gpProm = cash * promoteRate;
+
+    const lpTotal = prefPaid + lpCapReturn + lpAbove;
+    const gpTotal = gpCapReturn + gpProm;
 
     rows.push({ year: p.year, cashFlow: p.cf, lpPref: prefPaid, lpAbovePref: lpAbove, gpPromote: gpProm, lpTotal, gpTotal, accrued });
     lpCFs.push(lpTotal);
     gpCFs.push(gpTotal);
-  }
-
-  // Add capital return at exit
-  if (lpCFs.length > 1) {
-    lpCFs[lpCFs.length - 1] += lpEquity;
-    gpCFs[gpCFs.length - 1] += gpEquity;
-    rows[rows.length - 1].lpTotal += lpEquity;
-    rows[rows.length - 1].gpTotal += gpEquity;
   }
 
   const totalLP = lpCFs.slice(1).reduce((s, v) => s + v, 0);

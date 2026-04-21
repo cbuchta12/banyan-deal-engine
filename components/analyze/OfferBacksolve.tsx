@@ -67,7 +67,7 @@ export function OfferBacksolve({ mode, brrrrInputs, nnnInputs }: {
   nnnInputs: NNNInputs;
 }) {
   const [cocTarget, setCocTarget] = useState(mode === "brrrr" ? 10 : 8);
-  const [dscrTarget, setDscrTarget] = useState(1.25);
+  const [dscrTarget, setDscrTarget] = useState(mode === "brrrr" ? 1.25 : 10);
   const [cfTarget, setCfTarget] = useState(200);
 
   const bResult = useMemo(() => {
@@ -139,7 +139,7 @@ export function OfferBacksolve({ mode, brrrrInputs, nnnInputs }: {
         <div className="bg-[var(--panel)] border border-[var(--line)] rounded p-3 flex flex-col gap-2">
           <p className="text-[9px] font-mono font-bold text-[var(--accent)] uppercase tracking-widest mb-1">Targets</p>
           <TargetField label="Min Cap Rate" value={cocTarget} onChange={setCocTarget} suffix="%" />
-          <TargetField label="Min CoC Return" value={dscrTarget} onChange={setDscrTarget} suffix="%" />
+          <TargetField label="Min Cash-on-Cash" value={dscrTarget} onChange={setDscrTarget} suffix="%" />
           <TargetField label="Min DSCR" value={cfTarget / 100} onChange={v => setCfTarget(v * 100)} suffix="x" />
         </div>
 

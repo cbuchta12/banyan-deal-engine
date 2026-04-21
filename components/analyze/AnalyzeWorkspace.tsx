@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { calcBRRRR } from "@/lib/calculations/brrrr";
 import { calcNNN } from "@/lib/calculations/nnn";
@@ -29,10 +29,38 @@ export function AnalyzeWorkspace() {
   const [currentId, setCurrentId] = useState<string | undefined>();
   const [activePreset, setActivePreset] = useState("us-default");
   const [saved, setSaved] = useState(false);
+  const [nameError, setNameError] = useState(false);
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const [savedLabel, setSavedLabel] = useState("");
+  const hasEverSaved = useRef(false);
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isDirty = useRef(false);
 
   const [brrrrInputs, setBrrrrInputs] = useState<BRRRRInputs>(DEFAULT.brrrr);
   const [nnnInputs, setNnnInputs] = useState<NNNInputs>(DEFAULT.nnn);
   const [nnnTenants, setNnnTenants] = useState<RentRollTenant[]>([]);
+
+  // "Saved X ago" label refresh
+  useEffect(() => {
+    if (!savedAt) return;
+    const tick = () => {
+      const sec = Math.round((Date.now() - savedAt.getTime()) / 1000);
+      if (sec < 60) setSavedLabel(`Saved ${sec}s ago`);
+      else setSavedLabel(`Saved ${Math.round(sec / 60)}m ago`);
+    };
+    tick();
+    const id = setInterval(tick, 10000);
+    return () => clearInterval(id);
+  }, [savedAt]);
+
+  // Warn on unload when dirty
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty.current) { e.preventDefault(); e.returnValue = ""; }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, []);
 
   // Load deal from URL param
   useEffect(() => {
@@ -67,8 +95,9 @@ export function AnalyzeWorkspace() {
     }), [brrrrResult, brrrrInputs]);
   const nnnDCF = useMemo(() => calcDCF_NNN(nnnResult, nnnInputs), [nnnResult, nnnInputs]);
 
-  function handleSave() {
-    const name = dealName.trim() || "Untitled Deal";
+  const doSave = useCallback((silent = false) => {
+    const name = dealName.trim();
+    if (!name) { if (!silent) setNameError(true); return; }
     const deal = saveDeal({
       id: currentId,
       name,
@@ -80,9 +109,25 @@ export function AnalyzeWorkspace() {
       notes,
     } as any);
     setCurrentId(deal.id);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    hasEverSaved.current = true;
+    isDirty.current = false;
+    setSavedAt(new Date());
+    if (!silent) { setSaved(true); setTimeout(() => setSaved(false), 2000); }
+  }, [dealName, address, mode, brrrrInputs, nnnInputs, brrrrResult, nnnResult, notes, currentId, saveDeal]);
+
+  function handleSave() {
+    if (!dealName.trim()) { setNameError(true); return; }
+    doSave(false);
   }
+
+  // Auto-save 10 s after any change, but only once user has saved manually
+  useEffect(() => {
+    isDirty.current = true;
+    if (!hasEverSaved.current) return;
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => doSave(true), 10000);
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
+  }, [dealName, address, notes, brrrrInputs, nnnInputs, doSave]);
 
   function handlePrint() {
     const html = mode === "brrrr"
@@ -109,12 +154,15 @@ export function AnalyzeWorkspace() {
     <div className="flex flex-col" style={{ height: "calc(100vh - 48px)" }}>
       {/* Toolbar */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-[var(--line)] bg-[var(--panel)] flex-shrink-0 flex-wrap">
-        <input
-          value={dealName}
-          onChange={e => { setDealName(e.target.value); setSaved(false); }}
-          placeholder="Deal name…"
-          className="bg-transparent text-[var(--ink)] font-mono text-sm outline-none placeholder:text-[var(--ink-faint)] w-36"
-        />
+        <div className="flex flex-col">
+          <input
+            value={dealName}
+            onChange={e => { setDealName(e.target.value); setSaved(false); setNameError(false); }}
+            placeholder="Deal name…"
+            className={`bg-transparent text-[var(--ink)] font-mono text-sm outline-none placeholder:text-[var(--ink-faint)] w-36 ${nameError ? "placeholder:text-[var(--bad)]" : ""}`}
+          />
+          {nameError && <span className="text-[9px] font-mono text-[var(--bad)]">Name required</span>}
+        </div>
         <span className="text-[var(--line-2)] select-none">|</span>
         <input
           value={address}
@@ -154,6 +202,9 @@ export function AnalyzeWorkspace() {
         </button>
 
         {/* Save */}
+        {savedAt && !saved && (
+          <span className="text-[9px] font-mono text-[var(--ink-faint)] flex-shrink-0">{savedLabel}</span>
+        )}
         <button onClick={handleSave}
           className={`px-3 py-1.5 text-xs font-mono font-bold rounded border transition-colors flex-shrink-0 ${
             saved

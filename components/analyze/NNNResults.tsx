@@ -43,7 +43,7 @@ function Row({ label, value, dim }: { label: string; value: string; dim?: boolea
   );
 }
 
-const TABS = ["Results", "Sensitivity", "Backsolve", "LP Waterfall", "AI Memo", "Notes"] as const;
+const TABS = ["Results", "Sensitivity", "Backsolve", "LP Waterfall", "AI Memo"] as const;
 type Tab = typeof TABS[number];
 
 export function NNNResults({ result: r, dcf, inputs, dealName, address, brrrrInputs, notes, onNotesChange }: {
@@ -52,12 +52,13 @@ export function NNNResults({ result: r, dcf, inputs, dealName, address, brrrrInp
   notes?: string; onNotesChange?: (v: string) => void;
 }) {
   const [tab, setTab] = useState<Tab>("Results");
+  const [notesOpen, setNotesOpen] = useState(false);
   const strengthLabel = STRENGTH_LABELS[Math.min(r.leaseStrength, 8)] ?? "—";
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col relative">
       {/* Tab bar */}
-      <div className="flex gap-0 border-b border-[var(--line)] bg-[var(--panel)] flex-shrink-0">
+      <div className="flex items-center gap-0 border-b border-[var(--line)] bg-[var(--panel)] flex-shrink-0">
         {TABS.map(t => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-4 py-2 text-[10px] font-mono font-bold transition-colors border-b-2 ${
@@ -68,6 +69,12 @@ export function NNNResults({ result: r, dcf, inputs, dealName, address, brrrrInp
             {t}
           </button>
         ))}
+        <button onClick={() => setNotesOpen(o => !o)}
+          className={`ml-auto mr-3 px-2 py-1 text-[10px] font-mono rounded transition-colors ${
+            notesOpen ? "bg-[var(--accent)] text-[var(--bg)]" : "text-[var(--ink-faint)] hover:text-[var(--accent)]"
+          }`}>
+          📝 Notes{notes ? " ●" : ""}
+        </button>
       </div>
 
       {tab === "Results" && (
@@ -154,14 +161,19 @@ export function NNNResults({ result: r, dcf, inputs, dealName, address, brrrrInp
         <AIAnalysis mode="nnn" dealName={dealName ?? ""} address={address ?? ""} inputs={inputs} result={r} />
       )}
 
-      {tab === "Notes" && (
-        <div className="p-4">
-          <p className="text-[9px] font-mono font-bold text-[var(--accent)] uppercase tracking-widest mb-2">Deal Notes</p>
+      {/* Notes slide panel */}
+      {notesOpen && (
+        <div className="absolute top-0 right-0 bottom-0 w-72 bg-[var(--panel)] border-l border-[var(--line)] flex flex-col z-10 shadow-2xl">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--line)] flex-shrink-0">
+            <p className="text-[9px] font-mono font-bold text-[var(--accent)] uppercase tracking-widest">Deal Notes</p>
+            <button onClick={() => setNotesOpen(false)} className="text-[var(--ink-faint)] hover:text-[var(--bad)] text-xs transition-colors">✕</button>
+          </div>
           <textarea
             value={notes ?? ""}
             onChange={e => onNotesChange?.(e.target.value)}
-            placeholder="Add notes, due diligence items, contacts, deal history…"
-            className="w-full h-64 bg-[var(--panel)] border border-[var(--line)] rounded p-3 text-xs font-mono text-[var(--ink)] outline-none focus:border-[var(--accent)] placeholder:text-[var(--ink-faint)] resize-none transition-colors"
+            placeholder="Due diligence items, contacts, deal history…"
+            className="flex-1 bg-transparent p-3 text-xs font-mono text-[var(--ink)] outline-none placeholder:text-[var(--ink-faint)] resize-none"
+            autoFocus
           />
         </div>
       )}
