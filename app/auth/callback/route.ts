@@ -1,7 +1,8 @@
-import { createClient, createAdminClient } from "@/lib/supabase/server";
-import { NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import { createAdminClient } from "@/lib/supabase/server";
+import { NextResponse, type NextRequest } from "next/server";
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const next = searchParams.get("next") ?? "/";
@@ -10,14 +11,30 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/login?error=no_code`);
   }
 
-  const supabase = await createClient();
+  // Build redirect response first so we can attach session cookies directly to it
+  const redirectTo = NextResponse.redirect(`${origin}${next}`);
+  const errorRedirect = NextResponse.redirect(`${origin}/login?error=auth`);
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() { return request.cookies.getAll(); },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            redirectTo.cookies.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
+
   const { data: { user }, error } = await supabase.auth.exchangeCodeForSession(code);
 
-  if (error || !user) {
-    return NextResponse.redirect(`${origin}/login?error=auth`);
-  }
+  if (error || !user) return errorRedirect;
 
-  // Use admin client to bypass RLS for first-login provisioning
+  // First login — provision org + profile via admin client (bypasses RLS)
   const admin = await createAdminClient();
 
   const { data: existing } = await admin
@@ -46,5 +63,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(`${origin}${next}`);
+  return redirectTo;
 }
