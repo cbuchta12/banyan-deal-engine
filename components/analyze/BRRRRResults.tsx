@@ -22,6 +22,20 @@ const VERDICT_STYLE: Record<string, string> = {
   "HARD PASS":          "bg-[var(--bad)] text-white",
 };
 
+function verdictSubtitle(r: BRRRRResult): string {
+  if (r.cashflowMonthly < 0)  return `Cash flow negative at ${$(r.cashflowMonthly)}/mo — deal loses money as operated.`;
+  if (r.dscr < 1.25)          return `DSCR ${r.dscr.toFixed(2)}x fails lender minimum of 1.25x — debt coverage too thin.`;
+  if (r.arvRatio > 0.75)      return `ARV ratio ${(r.arvRatio * 100).toFixed(0)}% exceeds 75% ceiling — basis too high relative to ARV.`;
+  if (r.cocReturn < 0.08)     return `Cash-on-cash ${(r.cocReturn * 100).toFixed(1)}% below 8% hurdle — insufficient return on equity.`;
+  if (r.cashflowMonthly < 200) return `Monthly cash flow ${$(r.cashflowMonthly)} below $200 minimum buffer.`;
+  return `All primary metrics pass — verify rent and ARV assumptions.`;
+}
+
+function fmtCoC(n: number): string {
+  if (!isFinite(n)) return n > 0 ? "∞" : "N/M";
+  return (n * 100).toFixed(1) + "%";
+}
+
 function Metric({ label, value, good }: { label: string; value: string; good?: boolean | null }) {
   return (
     <div className="bg-[var(--panel)] border border-[var(--line)] rounded p-3 flex flex-col gap-1">
@@ -71,17 +85,26 @@ export function BRRRRResults({ result: r, dcf, inputs, dealName, address, nnnInp
 
       {tab === "Results" && (
         <div className="p-4 flex flex-col gap-4">
-          <div className="flex items-center gap-3">
-            <span className={`px-4 py-1.5 rounded font-mono font-bold text-sm tracking-widest ${VERDICT_STYLE[r.verdict] ?? ""}`}>
-              {r.verdict}
-            </span>
-            <span className="text-xs font-mono text-[var(--ink-faint)]">
-              ARV ratio {(r.arvRatio * 100).toFixed(0)}% · GRM {r.grm.toFixed(1)}
-            </span>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-3">
+              <span className={`px-4 py-1.5 rounded font-mono font-bold text-sm tracking-widest ${VERDICT_STYLE[r.verdict] ?? ""}`}>
+                {r.verdict}
+              </span>
+              <span className="text-xs font-mono text-[var(--ink-faint)]">
+                <span className={
+                  r.arvRatio > 0.75 ? "text-[var(--bad)]" :
+                  r.arvRatio > 0.70 ? "text-[var(--warn)]" : "text-[var(--accent)]"
+                }>
+                  ARV {(r.arvRatio * 100).toFixed(0)}% (target ≤75%)
+                </span>
+                {" · "}GRM {r.grm.toFixed(1)}
+              </span>
+            </div>
+            <p className="text-[10px] font-mono text-[var(--ink-faint)] pl-0">{verdictSubtitle(r)}</p>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            <Metric label="Cash-on-Cash" value={pct(r.cocReturn)} good={r.cocReturn >= 0.08} />
+            <Metric label="Cash-on-Cash" value={fmtCoC(r.cocReturn)} good={r.cocReturn >= 0.08} />
             <Metric label="Monthly Cash Flow" value={$(r.cashflowMonthly)} good={r.cashflowMonthly >= 200} />
             <Metric label="DSCR" value={r.dscr.toFixed(2)} good={r.dscr >= 1.25} />
             <Metric label="Cap Rate" value={pct(r.capRate)} good={r.capRate >= 0.06} />

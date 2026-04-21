@@ -32,7 +32,8 @@ function keyMetric(d: LocalDeal): string {
   if (d.mode === "brrrr") {
     const cf = (d.result as any)?.cashflowMonthly ?? 0;
     const coc = (d.result as any)?.cocReturn ?? 0;
-    return `${$(cf)}/mo · ${(coc * 100).toFixed(1)}% CoC`;
+    const cocStr = isFinite(coc) ? `${(coc * 100).toFixed(1)}% CoC` : "∞ CoC";
+    return `${$(cf)}/mo · ${cocStr}`;
   }
   const cap = (d.result as any)?.goingInCapRate ?? 0;
   const cf = (d.result as any)?.cashflowMonthly ?? 0;

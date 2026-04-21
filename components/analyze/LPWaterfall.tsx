@@ -115,9 +115,12 @@ export function LPWaterfall({ equity, dcf }: { equity: number; dcf: DCFResult })
             </tbody>
           </table>
         </div>
+        <p className="text-[9px] font-mono text-[var(--ink-faint)] mt-2">
+          ↑ Unpaid preferred return accrues and is paid from the first available cash flows in subsequent years, before any promote split.
+        </p>
         {result.rows.some(r => r.accrued > 0) && (
-          <p className="text-[9px] font-mono text-[var(--warn)] mt-2">
-            ⚠ Accrued unpaid preferred return in some periods — cash flow insufficient to cover full pref.
+          <p className="text-[9px] font-mono text-[var(--warn)] mt-1">
+            ⚠ Accrued pref balance outstanding — verify exit proceeds are sufficient to clear it.
           </p>
         )}
       </div>

@@ -13,7 +13,7 @@ function metricRows(d: LocalDeal): Array<{ label: string; raw: number; fmt: stri
   const r = d.result as any;
   if (d.mode === "brrrr") {
     return [
-      { label: "Cash-on-Cash",       raw: r.cocReturn,       fmt: pct(r.cocReturn) },
+      { label: "Cash-on-Cash",       raw: isFinite(r.cocReturn) ? r.cocReturn : 999, fmt: isFinite(r.cocReturn) ? pct(r.cocReturn) : "∞" },
       { label: "Monthly Cash Flow",  raw: r.cashflowMonthly, fmt: $(r.cashflowMonthly) },
       { label: "DSCR",               raw: r.dscr,            fmt: r.dscr.toFixed(2) },
       { label: "Cap Rate",           raw: r.capRate,         fmt: pct(r.capRate) },
