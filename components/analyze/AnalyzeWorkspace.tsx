@@ -7,11 +7,13 @@ import { calcNNN } from "@/lib/calculations/nnn";
 import { calcDCF_BRRRR, calcDCF_NNN } from "@/lib/calculations/dcf";
 import { PRESETS } from "@/lib/presets";
 import { useDeals } from "@/lib/hooks/useDeals";
+import { generateBRRRRPrint, generateNNNPrint } from "@/lib/print";
 import { BRRRRForm } from "./BRRRRForm";
 import { NNNForm } from "./NNNForm";
 import { BRRRRResults } from "./BRRRRResults";
 import { NNNResults } from "./NNNResults";
 import type { DealMode, BRRRRInputs, NNNInputs } from "@/types/deal";
+import type { RentRollTenant } from "./NNNRentRoll";
 
 const DEFAULT = PRESETS[0];
 
@@ -23,12 +25,14 @@ export function AnalyzeWorkspace() {
   const [mode, setMode] = useState<DealMode>("brrrr");
   const [dealName, setDealName] = useState("");
   const [address, setAddress] = useState("");
+  const [notes, setNotes] = useState("");
   const [currentId, setCurrentId] = useState<string | undefined>();
   const [activePreset, setActivePreset] = useState("us-default");
   const [saved, setSaved] = useState(false);
 
   const [brrrrInputs, setBrrrrInputs] = useState<BRRRRInputs>(DEFAULT.brrrr);
   const [nnnInputs, setNnnInputs] = useState<NNNInputs>(DEFAULT.nnn);
+  const [nnnTenants, setNnnTenants] = useState<RentRollTenant[]>([]);
 
   // Load deal from URL param
   useEffect(() => {
@@ -39,6 +43,7 @@ export function AnalyzeWorkspace() {
     setMode(deal.mode);
     setDealName(deal.name);
     setAddress(deal.address);
+    setNotes((deal as any).notes ?? "");
     setCurrentId(deal.id);
     if (deal.mode === "brrrr") setBrrrrInputs(deal.inputs as BRRRRInputs);
     else setNnnInputs(deal.inputs as NNNInputs);
@@ -72,19 +77,31 @@ export function AnalyzeWorkspace() {
       status: "analyzing",
       inputs: mode === "brrrr" ? brrrrInputs : nnnInputs,
       result: mode === "brrrr" ? brrrrResult : nnnResult,
-    });
+      notes,
+    } as any);
     setCurrentId(deal.id);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  }
+
+  function handlePrint() {
+    const html = mode === "brrrr"
+      ? generateBRRRRPrint(dealName, address, brrrrInputs, brrrrResult, brrrrDCF)
+      : generateNNNPrint(dealName, address, nnnInputs, nnnResult, nnnDCF);
+    const win = window.open("", "_blank");
+    win?.document.write(html);
+    win?.document.close();
   }
 
   function handleNew() {
     setMode("brrrr");
     setDealName("");
     setAddress("");
+    setNotes("");
     setCurrentId(undefined);
     setBrrrrInputs(DEFAULT.brrrr);
     setNnnInputs(DEFAULT.nnn);
+    setNnnTenants([]);
     router.push("/");
   }
 
@@ -124,6 +141,12 @@ export function AnalyzeWorkspace() {
           {PRESETS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
         </select>
 
+        {/* Print */}
+        <button onClick={handlePrint}
+          className="px-3 py-1 text-xs font-mono text-[var(--ink-faint)] hover:text-[var(--ink)] transition-colors flex-shrink-0">
+          ↓ Print
+        </button>
+
         {/* New */}
         <button onClick={handleNew}
           className="px-3 py-1 text-xs font-mono text-[var(--ink-faint)] hover:text-[var(--ink)] transition-colors flex-shrink-0">
@@ -137,7 +160,7 @@ export function AnalyzeWorkspace() {
               ? "bg-[var(--accent)] border-[var(--accent)] text-[var(--bg)]"
               : "border-[var(--line)] text-[var(--ink-dim)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
           }`}>
-          {saved ? "✓ Saved" : "Save Deal"}
+          {saved ? "✓ Saved" : "Save"}
         </button>
       </div>
 
@@ -147,7 +170,8 @@ export function AnalyzeWorkspace() {
         <div className="w-[400px] flex-shrink-0 overflow-y-auto border-r border-[var(--line)] bg-[var(--panel)]">
           {mode === "brrrr"
             ? <BRRRRForm inputs={brrrrInputs} onChange={setBrrrrInputs} />
-            : <NNNForm inputs={nnnInputs} onChange={setNnnInputs} />
+            : <NNNForm inputs={nnnInputs} onChange={setNnnInputs}
+                tenants={nnnTenants} onTenantsChange={setNnnTenants} />
           }
         </div>
 
@@ -155,9 +179,11 @@ export function AnalyzeWorkspace() {
         <div className="flex-1 overflow-y-auto">
           {mode === "brrrr"
             ? <BRRRRResults result={brrrrResult} dcf={brrrrDCF} inputs={brrrrInputs}
-                dealName={dealName} address={address} nnnInputs={nnnInputs} />
+                dealName={dealName} address={address} nnnInputs={nnnInputs}
+                notes={notes} onNotesChange={setNotes} />
             : <NNNResults result={nnnResult} dcf={nnnDCF} inputs={nnnInputs}
-                dealName={dealName} address={address} brrrrInputs={brrrrInputs} />
+                dealName={dealName} address={address} brrrrInputs={brrrrInputs}
+                notes={notes} onNotesChange={setNotes} />
           }
         </div>
       </div>

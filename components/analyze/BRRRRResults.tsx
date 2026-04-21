@@ -40,12 +40,13 @@ function Row({ label, value, dim }: { label: string; value: string; dim?: boolea
   );
 }
 
-const TABS = ["Results", "Sensitivity", "Backsolve", "AI Memo"] as const;
+const TABS = ["Results", "Sensitivity", "Backsolve", "AI Memo", "Notes"] as const;
 type Tab = typeof TABS[number];
 
-export function BRRRRResults({ result: r, dcf, inputs, dealName, address, nnnInputs }: {
+export function BRRRRResults({ result: r, dcf, inputs, dealName, address, nnnInputs, notes, onNotesChange }: {
   result: BRRRRResult; dcf: DCFResult; inputs: BRRRRInputs;
   dealName?: string; address?: string; nnnInputs: NNNInputs;
+  notes?: string; onNotesChange?: (v: string) => void;
 }) {
   const [tab, setTab] = useState<Tab>("Results");
   const cashRecaptured = r.totalInvested > 0 ? (r.cashBackAtRefi / r.totalInvested) * 100 : 0;
@@ -137,6 +138,18 @@ export function BRRRRResults({ result: r, dcf, inputs, dealName, address, nnnInp
 
       {tab === "AI Memo" && (
         <AIAnalysis mode="brrrr" dealName={dealName ?? ""} address={address ?? ""} inputs={inputs} result={r} />
+      )}
+
+      {tab === "Notes" && (
+        <div className="p-4">
+          <p className="text-[9px] font-mono font-bold text-[var(--accent)] uppercase tracking-widest mb-2">Deal Notes</p>
+          <textarea
+            value={notes ?? ""}
+            onChange={e => onNotesChange?.(e.target.value)}
+            placeholder="Add notes, due diligence items, contacts, deal history…"
+            className="w-full h-64 bg-[var(--panel)] border border-[var(--line)] rounded p-3 text-xs font-mono text-[var(--ink)] outline-none focus:border-[var(--accent)] placeholder:text-[var(--ink-faint)] resize-none transition-colors"
+          />
+        </div>
       )}
     </div>
   );

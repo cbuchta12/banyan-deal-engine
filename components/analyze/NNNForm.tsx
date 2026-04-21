@@ -1,8 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import type { NNNInputs } from "@/types/deal";
+import { NNNRentRoll, type RentRollTenant } from "./NNNRentRoll";
 
-interface Props { inputs: NNNInputs; onChange: (i: NNNInputs) => void; }
+interface Props {
+  inputs: NNNInputs;
+  onChange: (i: NNNInputs) => void;
+  tenants: RentRollTenant[];
+  onTenantsChange: (t: RentRollTenant[]) => void;
+}
 
 function Field({ label, value, onChange, prefix, suffix, step = 1, min = 0 }: {
   label: string; value: number; onChange: (v: number) => void;
@@ -52,70 +59,99 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export function NNNForm({ inputs: i, onChange }: Props) {
+const FORM_TABS = ["Inputs", "Rent Roll"] as const;
+
+export function NNNForm({ inputs: i, onChange, tenants, onTenantsChange }: Props) {
+  const [tab, setTab] = useState<"Inputs" | "Rent Roll">("Inputs");
   const n = (key: keyof NNNInputs) => (v: number) => onChange({ ...i, [key]: v });
 
   return (
-    <div className="pb-6">
-      <Section title="Property">
-        <div className="col-span-2">
-          <Field label="Purchase Price" value={i.price} onChange={n("price")} prefix="$" />
+    <div className="flex flex-col">
+      {/* Tab bar */}
+      <div className="flex border-b border-[var(--line)]">
+        {FORM_TABS.map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            className={`px-4 py-2 text-[10px] font-mono font-bold transition-colors border-b-2 ${
+              tab === t
+                ? "border-[var(--accent)] text-[var(--accent)]"
+                : "border-transparent text-[var(--ink-faint)] hover:text-[var(--ink-dim)]"
+            }`}>
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {tab === "Inputs" && (
+        <div className="pb-6">
+          <Section title="Property">
+            <div className="col-span-2">
+              <Field label="Purchase Price" value={i.price} onChange={n("price")} prefix="$" />
+            </div>
+            <Field label="Building SF" value={i.sf} onChange={n("sf")} suffix="sf" />
+            <Field label="Closing Costs" value={i.closingCosts} onChange={n("closingCosts")} prefix="$" />
+            <div className="col-span-2">
+              <Select label="Asset Class" value={i.assetClass} onChange={v => onChange({ ...i, assetClass: v as NNNInputs["assetClass"] })}
+                options={[
+                  { value: "industrial", label: "Industrial" },
+                  { value: "flex", label: "Flex / R&D" },
+                  { value: "retail", label: "Retail / NNN" },
+                  { value: "office", label: "Office" },
+                ]}
+              />
+            </div>
+          </Section>
+
+          <Section title="Lease">
+            <Field label="Rent / SF / Yr" value={i.rentPerSf} onChange={n("rentPerSf")} prefix="$" step={0.25} />
+            <Field label="Lease Term" value={i.leaseTerm} onChange={n("leaseTerm")} suffix="yr" />
+            <Field label="Escalator" value={i.escalator} onChange={n("escalator")} suffix="% / yr" step={0.25} />
+            <Select label="Lease Type" value={i.leaseType} onChange={v => onChange({ ...i, leaseType: v as NNNInputs["leaseType"] })}
+              options={[
+                { value: "nnn", label: "NNN (Triple Net)" },
+                { value: "nn", label: "NN (Double Net)" },
+                { value: "gross", label: "Gross" },
+              ]}
+            />
+            <Select label="Tenant Credit" value={i.tenantCredit} onChange={v => onChange({ ...i, tenantCredit: v as NNNInputs["tenantCredit"] })}
+              options={[
+                { value: "ig", label: "Investment Grade" },
+                { value: "strong", label: "Strong / Regional" },
+                { value: "mid", label: "Mid-Market" },
+                { value: "sub", label: "Sub / Local" },
+              ]}
+            />
+            <Select label="Mission Critical" value={i.missionCritical} onChange={v => onChange({ ...i, missionCritical: v as NNNInputs["missionCritical"] })}
+              options={[
+                { value: "yes", label: "Yes" },
+                { value: "partial", label: "Partial" },
+                { value: "no", label: "No" },
+              ]}
+            />
+          </Section>
+
+          <Section title="Debt">
+            <Field label="LTV" value={i.ltv} onChange={n("ltv")} suffix="%" />
+            <Field label="Interest Rate" value={i.rate} onChange={n("rate")} suffix="%" step={0.125} />
+            <Field label="Amortization" value={i.amort} onChange={n("amort")} suffix="yr" />
+            <Field label="Loan Term" value={i.loanTerm} onChange={n("loanTerm")} suffix="yr" />
+          </Section>
+
+          <Section title="Expenses / Exit">
+            <Field label="Management" value={i.managementPct} onChange={n("managementPct")} suffix="% EGI" step={0.5} />
+            <Field label="Structural Reserve" value={i.structuralReservePerSf} onChange={n("structuralReservePerSf")} suffix="$/sf" step={0.05} />
+            <Field label="Vacancy" value={i.vacancy} onChange={n("vacancy")} suffix="%" step={0.5} />
+            <Field label="Exit Cap Rate" value={i.exitCapRate} onChange={n("exitCapRate")} suffix="%" step={0.25} />
+          </Section>
         </div>
-        <Field label="Building SF" value={i.sf} onChange={n("sf")} suffix="sf" />
-        <Field label="Closing Costs" value={i.closingCosts} onChange={n("closingCosts")} prefix="$" />
-        <div className="col-span-2">
-          <Select label="Asset Class" value={i.assetClass} onChange={v => onChange({ ...i, assetClass: v as NNNInputs["assetClass"] })}
-            options={[
-              { value: "industrial", label: "Industrial" },
-              { value: "flex", label: "Flex / R&D" },
-              { value: "retail", label: "Retail / NNN" },
-              { value: "office", label: "Office" },
-            ]}
-          />
-        </div>
-      </Section>
+      )}
 
-      <Section title="Lease">
-        <Field label="Rent / SF / Yr" value={i.rentPerSf} onChange={n("rentPerSf")} prefix="$" step={0.25} />
-        <Field label="Lease Term" value={i.leaseTerm} onChange={n("leaseTerm")} suffix="yr" />
-        <Field label="Escalator" value={i.escalator} onChange={n("escalator")} suffix="% / yr" step={0.25} />
-        <Select label="Lease Type" value={i.leaseType} onChange={v => onChange({ ...i, leaseType: v as NNNInputs["leaseType"] })}
-          options={[
-            { value: "nnn", label: "NNN (Triple Net)" },
-            { value: "nn", label: "NN (Double Net)" },
-            { value: "gross", label: "Gross" },
-          ]}
+      {tab === "Rent Roll" && (
+        <NNNRentRoll
+          tenants={tenants}
+          onChange={onTenantsChange}
+          onApply={(sf, rentPerSf) => onChange({ ...i, sf, rentPerSf })}
         />
-        <Select label="Tenant Credit" value={i.tenantCredit} onChange={v => onChange({ ...i, tenantCredit: v as NNNInputs["tenantCredit"] })}
-          options={[
-            { value: "ig", label: "Investment Grade" },
-            { value: "strong", label: "Strong / Regional" },
-            { value: "mid", label: "Mid-Market" },
-            { value: "sub", label: "Sub / Local" },
-          ]}
-        />
-        <Select label="Mission Critical" value={i.missionCritical} onChange={v => onChange({ ...i, missionCritical: v as NNNInputs["missionCritical"] })}
-          options={[
-            { value: "yes", label: "Yes" },
-            { value: "partial", label: "Partial" },
-            { value: "no", label: "No" },
-          ]}
-        />
-      </Section>
-
-      <Section title="Debt">
-        <Field label="LTV" value={i.ltv} onChange={n("ltv")} suffix="%" />
-        <Field label="Interest Rate" value={i.rate} onChange={n("rate")} suffix="%" step={0.125} />
-        <Field label="Amortization" value={i.amort} onChange={n("amort")} suffix="yr" />
-        <Field label="Loan Term" value={i.loanTerm} onChange={n("loanTerm")} suffix="yr" />
-      </Section>
-
-      <Section title="Expenses / Exit">
-        <Field label="Management" value={i.managementPct} onChange={n("managementPct")} suffix="% EGI" step={0.5} />
-        <Field label="Structural Reserve" value={i.structuralReservePerSf} onChange={n("structuralReservePerSf")} suffix="$/sf" step={0.05} />
-        <Field label="Vacancy" value={i.vacancy} onChange={n("vacancy")} suffix="%" step={0.5} />
-        <Field label="Exit Cap Rate" value={i.exitCapRate} onChange={n("exitCapRate")} suffix="%" step={0.25} />
-      </Section>
+      )}
     </div>
   );
 }
