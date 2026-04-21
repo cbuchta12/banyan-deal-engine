@@ -39,6 +39,16 @@ function keyMetric(d: LocalDeal): string {
   return `${(cap * 100).toFixed(2)}% cap · ${$(cf)}/mo`;
 }
 
+function exportDeals(deals: LocalDeal[]) {
+  const blob = new Blob([JSON.stringify(deals, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `banyan-deals-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function DealsPage() {
   const { deals, loaded, updateStatus, deleteDeal } = useDeals();
   const [search, setSearch] = useState("");
@@ -71,10 +81,24 @@ export default function DealsPage() {
           <h1 className="text-xl font-bold font-mono text-[var(--ink)]">Pipeline</h1>
           <p className="text-xs text-[var(--ink-faint)] font-mono mt-0.5">{deals.length} total</p>
         </div>
-        <Link href="/"
-          className="px-4 py-2 text-xs font-mono font-bold bg-[var(--accent)] text-[var(--bg)] rounded hover:opacity-90 transition-opacity">
-          + New Analysis
-        </Link>
+        <div className="flex gap-2">
+          {deals.length >= 2 && (
+            <Link href="/deals/compare"
+              className="px-3 py-2 text-xs font-mono font-bold border border-[var(--line)] text-[var(--ink-faint)] rounded hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors">
+              Compare
+            </Link>
+          )}
+          {deals.length > 0 && (
+            <button onClick={() => exportDeals(deals)}
+              className="px-3 py-2 text-xs font-mono font-bold border border-[var(--line)] text-[var(--ink-faint)] rounded hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors">
+              Export JSON
+            </button>
+          )}
+          <Link href="/"
+            className="px-4 py-2 text-xs font-mono font-bold bg-[var(--accent)] text-[var(--bg)] rounded hover:opacity-90 transition-opacity">
+            + New Analysis
+          </Link>
+        </div>
       </div>
 
       {/* Stats bar */}

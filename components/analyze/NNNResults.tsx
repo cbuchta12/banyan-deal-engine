@@ -7,6 +7,7 @@ import { DCFTable } from "./DCFTable";
 import { SensitivityMatrix } from "./SensitivityMatrix";
 import { OfferBacksolve } from "./OfferBacksolve";
 import { AIAnalysis } from "./AIAnalysis";
+import { LPWaterfall } from "./LPWaterfall";
 
 const $ = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 const pct = (n: number) => (n * 100).toFixed(2) + "%";
@@ -42,7 +43,7 @@ function Row({ label, value, dim }: { label: string; value: string; dim?: boolea
   );
 }
 
-const TABS = ["Results", "Sensitivity", "Backsolve", "AI Memo", "Notes"] as const;
+const TABS = ["Results", "Sensitivity", "Backsolve", "LP Waterfall", "AI Memo", "Notes"] as const;
 type Tab = typeof TABS[number];
 
 export function NNNResults({ result: r, dcf, inputs, dealName, address, brrrrInputs, notes, onNotesChange }: {
@@ -143,6 +144,10 @@ export function NNNResults({ result: r, dcf, inputs, dealName, address, brrrrInp
 
       {tab === "Backsolve" && (
         <OfferBacksolve mode="nnn" brrrrInputs={brrrrInputs} nnnInputs={inputs} />
+      )}
+
+      {tab === "LP Waterfall" && (
+        <LPWaterfall equity={r.equity} dcf={dcf} />
       )}
 
       {tab === "AI Memo" && (

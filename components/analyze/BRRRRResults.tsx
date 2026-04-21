@@ -7,6 +7,8 @@ import { DCFTable } from "./DCFTable";
 import { SensitivityMatrix } from "./SensitivityMatrix";
 import { OfferBacksolve } from "./OfferBacksolve";
 import { AIAnalysis } from "./AIAnalysis";
+import { LPWaterfall } from "./LPWaterfall";
+import { RentComps } from "./RentComps";
 
 const $ = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 const pct = (n: number) => (n * 100).toFixed(1) + "%";
@@ -40,7 +42,7 @@ function Row({ label, value, dim }: { label: string; value: string; dim?: boolea
   );
 }
 
-const TABS = ["Results", "Sensitivity", "Backsolve", "AI Memo", "Notes"] as const;
+const TABS = ["Results", "Sensitivity", "Backsolve", "LP Waterfall", "Rent Comps", "AI Memo", "Notes"] as const;
 type Tab = typeof TABS[number];
 
 export function BRRRRResults({ result: r, dcf, inputs, dealName, address, nnnInputs, notes, onNotesChange }: {
@@ -134,6 +136,14 @@ export function BRRRRResults({ result: r, dcf, inputs, dealName, address, nnnInp
 
       {tab === "Backsolve" && (
         <OfferBacksolve mode="brrrr" brrrrInputs={inputs} nnnInputs={nnnInputs} />
+      )}
+
+      {tab === "LP Waterfall" && (
+        <LPWaterfall equity={r.equityLeftInDeal} dcf={dcf} />
+      )}
+
+      {tab === "Rent Comps" && (
+        <RentComps defaultAddress={address} />
       )}
 
       {tab === "AI Memo" && (
